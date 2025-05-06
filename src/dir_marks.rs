@@ -122,7 +122,7 @@ impl DirMarks {
     // match by **unique** prefix
     let mut target = None;
     let mut count_prefix: u32 = 0;
-    for mark in &marks {
+    for mark in &mut self.marks {
       if mark.kwd.starts_with(kwd) {
         count_prefix += 1;
         target = Some(mark);
@@ -130,6 +130,7 @@ impl DirMarks {
     }
     if count_prefix == 1 {
       let target = target.unwrap();
+      target.jump_times += 1;
       let file = File::create(JUMP_TARGET_DATA_PATH).expect("create file");
       let mut writer = BufWriter::new(file);
       writer.write_all(target.path.as_bytes()).expect("write to file");
