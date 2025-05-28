@@ -1,5 +1,6 @@
 mod args;
 mod dir_marks;
+mod git;
 mod show_file_size;
 
 use sysinfo::System;
@@ -115,6 +116,12 @@ fn main() -> Result<(), String> {
         dir_marks::DirMarks::shell_fn();
       }
     },
+    FinishBranch(_) => {
+      if let Err(e) = git::finish_branch() {
+        eprintln!("Error finishing branch: {}", e);
+        std::process::exit(1);
+      }
+    }
   }
 
   Ok(())
