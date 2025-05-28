@@ -48,6 +48,15 @@ in large --min 1k --sort
 5.7 MB ./target/release/deps/libserde-8238757ab41c1ecb.rlib
 ```
 
+Filter by file extension:
+
+```bash
+in large --min 1k --ext rs
+2.1 KB ./src/main.rs
+3.4 KB ./src/args.rs
+4.2 KB ./src/show_file_size.rs
+```
+
 ### Dir mark
 
 ```bash

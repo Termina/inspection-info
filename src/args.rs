@@ -70,6 +70,9 @@ pub struct InspectForFileSize {
   /// show sorted result
   #[argh(switch, short = 's')]
   pub sort: bool,
+  /// filter by file extension (e.g., "rs", "txt")
+  #[argh(option)]
+  pub ext: Option<String>,
 }
 
 /// command for directory marks
