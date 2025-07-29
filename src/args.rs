@@ -17,6 +17,7 @@ pub enum InspectionCommand {
   ShowWorkingDirectory(InspectForWorkingDirectory),
   ListFileSize(InspectForFileSize),
   DirMark(InspectForDirMark),
+  FinishBranch(InspectForFinishBranch),
 }
 
 /// command for inspecting IP addresses.
@@ -69,6 +70,9 @@ pub struct InspectForFileSize {
   /// show sorted result
   #[argh(switch, short = 's')]
   pub sort: bool,
+  /// filter by file extension (e.g., "rs", "txt")
+  #[argh(option)]
+  pub ext: Option<String>,
 }
 
 /// command for directory marks
@@ -78,6 +82,12 @@ pub struct InspectForDirMark {
   #[argh(subcommand)]
   pub subcommand: DirMarkCommand,
 }
+
+// InspectForFinishBranch
+/// command for finishing a branch
+#[derive(FromArgs, PartialEq, Debug)]
+#[argh(subcommand, name = "finbr")]
+pub struct InspectForFinishBranch {}
 
 #[derive(FromArgs, PartialEq, Debug)]
 #[argh(subcommand)]
