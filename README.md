@@ -85,6 +85,36 @@ then jump to `demo` with:
 gg demo
 ```
 
+### Show Git Tags
+
+List git tags in chronological order. By default, it shows the latest 10 tags.
+
+```bash
+in tags
+```
+
+Example output:
+```
+Showing the last 10 of 12 tags (from 2025-07-31 to 2025-07-31). Use --all to see all.
+
+2025-07-31  v0.1.03   Test tag 3
+2025-07-31  v0.1.04   Test tag 4
+2025-07-31  v0.1.05   Test tag 5
+2025-07-31  v0.1.06   Test tag 6
+2025-07-31  v0.1.07   Test tag 7
+2025-07-31  v0.1.08   Test tag 8
+2025-07-31  v0.1.09   Test tag 9
+2025-07-31  v0.1.10   Test tag 10
+2025-07-31  v0.1.11   Test tag 11
+2025-07-31  v0.1.12   Test tag 12
+```
+
+To view all tags, use the `--all` flag.
+
+```bash
+in tags --all
+```
+
 ### License
 
 MIT

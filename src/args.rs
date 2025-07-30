@@ -18,6 +18,7 @@ pub enum InspectionCommand {
   ListFileSize(InspectForFileSize),
   DirMark(InspectForDirMark),
   FinishBranch(InspectForFinishBranch),
+  ShowTags(InspectForTags),
 }
 
 /// command for inspecting IP addresses.
@@ -27,6 +28,15 @@ pub struct InspectForIp {
   #[argh(switch, short = 'd')]
   /// switch on verbose mode.
   pub detailed: bool,
+}
+
+/// command for showing tags.
+#[derive(FromArgs, PartialEq, Debug)]
+#[argh(subcommand, name = "tags")]
+pub struct InspectForTags {
+  /// show all tags
+  #[argh(switch, long = "all")]
+  pub all: bool,
 }
 
 /// command for copying files.
