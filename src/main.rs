@@ -2,6 +2,7 @@ mod args;
 mod dir_marks;
 mod git;
 mod show_file_size;
+mod tags;
 
 use sysinfo::System;
 
@@ -120,6 +121,12 @@ fn main() -> Result<(), String> {
     FinishBranch(_) => {
       if let Err(e) = git::finish_branch() {
         eprintln!("Error finishing branch: {}", e);
+        std::process::exit(1);
+      }
+    }
+    ShowTags(options) => {
+      if let Err(e) = tags::show_tags(&options) {
+        eprintln!("Error showing tags: {}", e);
         std::process::exit(1);
       }
     }
