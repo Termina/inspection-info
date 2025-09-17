@@ -17,7 +17,7 @@ pub enum InspectionCommand {
   ShowWorkingDirectory(InspectForWorkingDirectory),
   ListFileSize(InspectForFileSize),
   DirMark(InspectForDirMark),
-  FinishBranch(InspectForFinishBranch),
+  Branch(InspectForBranch),
   ShowTags(InspectForTags),
 }
 
@@ -93,11 +93,30 @@ pub struct InspectForDirMark {
   pub subcommand: DirMarkCommand,
 }
 
-// InspectForFinishBranch
+/// command for branch operations
+#[derive(FromArgs, PartialEq, Debug)]
+#[argh(subcommand, name = "br")]
+pub struct InspectForBranch {
+  #[argh(subcommand)]
+  pub subcommand: BranchCommand,
+}
+
+#[derive(FromArgs, PartialEq, Debug)]
+#[argh(subcommand)]
+pub enum BranchCommand {
+  Finish(InspectForBranchFinish),
+  Open(InspectForBranchOpen),
+}
+
 /// command for finishing a branch
 #[derive(FromArgs, PartialEq, Debug)]
-#[argh(subcommand, name = "finbr")]
-pub struct InspectForFinishBranch {}
+#[argh(subcommand, name = "finish")]
+pub struct InspectForBranchFinish {}
+
+/// command for opening remote repository
+#[derive(FromArgs, PartialEq, Debug)]
+#[argh(subcommand, name = "open")]
+pub struct InspectForBranchOpen {}
 
 #[derive(FromArgs, PartialEq, Debug)]
 #[argh(subcommand)]

@@ -8,7 +8,7 @@ use sysinfo::System;
 
 use bytesize::ByteSize;
 
-use args::{DirMarkCommand, InspectionCommand, TopLevelInspection};
+use args::{BranchCommand, DirMarkCommand, InspectionCommand, TopLevelInspection};
 use local_ip_address::{list_afinet_netifas, local_ip};
 
 fn main() -> Result<(), String> {
@@ -118,10 +118,18 @@ fn main() -> Result<(), String> {
         dir_marks::DirMarks::shell_fn();
       }
     },
-    FinishBranch(_) => {
-      if let Err(e) = git::finish_branch() {
-        eprintln!("Error finishing branch: {e}");
-        std::process::exit(1);
+    Branch(options) => match options.subcommand {
+      BranchCommand::Finish(_) => {
+        if let Err(e) = git::finish_branch() {
+          eprintln!("Error finishing branch: {e}");
+          std::process::exit(1);
+        }
+      }
+      BranchCommand::Open(_) => {
+        if let Err(e) = git::open_remote_repository() {
+          eprintln!("Error opening remote repository: {e}");
+          std::process::exit(1);
+        }
       }
     }
     ShowTags(options) => {
