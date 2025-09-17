@@ -39,9 +39,24 @@ pub fn finish_branch() -> Result<(), Box<dyn std::error::Error>> {
   checkout_branch(&repo, &main_branch)?;
   println!("✅ Successfully switched to {main_branch} branch");
 
-  // Fetch and pull latest changes on main branch in one operation
-  println!("📥 Fetching and pulling latest changes on {main_branch} branch...");
-  fetch_and_pull(&repo, &main_branch)?;
+  // First fetch to get the latest remote history
+  println!("📡 Fetching latest changes from remote...");
+  fetch_remote()?;
+
+  // Check if the current branch has been merged into main
+  println!("🔍 Checking if branch '{current_branch_name}' has been merged into '{main_branch}'...");
+  if !is_branch_merged(&current_branch_name, &main_branch)? {
+    println!("⚠️  Warning: Branch '{current_branch_name}' has not been merged into '{main_branch}'!");
+    println!("   This means the branch contains commits that are not in the main branch.");
+    println!("   Please merge or rebase your branch first before using this command.");
+    println!("   Aborting to prevent data loss.");
+    return Err("Branch not merged - cannot safely delete".into());
+  }
+  println!("✅ Branch '{current_branch_name}' has been merged into '{main_branch}'");
+
+  // Pull latest changes on main branch
+  println!("📥 Pulling latest changes on {main_branch} branch...");
+  pull_main_branch(&main_branch)?;
 
   // Delete the feature branch (no confirmation needed)
   println!("🗑️  Deleting branch '{current_branch_name}'...");
@@ -83,37 +98,6 @@ fn detect_main_branch(repo: &Repository) -> Result<String, Box<dyn std::error::E
   }
 
   Err("Could not detect main or master branch".into())
-}
-
-fn fetch_and_pull(_repo: &Repository, main_branch: &str) -> Result<(), Box<dyn std::error::Error>> {
-  // Fetch all branches with prune and then merge the remote tracking branch
-  // This is more efficient than separate fetch + pull commands
-  println!("📡 Fetching from origin with --prune...");
-  let status = Command::new("git").args(["fetch", "origin", "--prune"]).status()?;
-
-  if !status.success() {
-    return Err(format!("Failed to fetch from origin with exit code: {}", status.code().unwrap_or(-1)).into());
-  }
-
-  println!("✅ Successfully fetched from origin");
-
-  // Now merge the remote tracking branch (equivalent to pull but without redundant fetch)
-  println!("🔄 Merging origin/{main_branch}...");
-  let status = Command::new("git").args(["merge", &format!("origin/{main_branch}")]).status()?;
-
-  if !status.success() {
-    return Err(
-      format!(
-        "Failed to merge origin/{} with exit code: {}",
-        main_branch,
-        status.code().unwrap_or(-1)
-      )
-      .into(),
-    );
-  }
-
-  println!("✅ Successfully fetched and updated {main_branch} branch");
-  Ok(())
 }
 
 fn checkout_branch(repo: &Repository, branch_name: &str) -> Result<(), Box<dyn std::error::Error>> {
@@ -208,5 +192,60 @@ fn restore_stashed_changes() -> Result<(), Box<dyn std::error::Error>> {
     }
   }
 
+  Ok(())
+}
+
+fn fetch_remote() -> Result<(), Box<dyn std::error::Error>> {
+  println!("📡 Fetching from origin with --prune...");
+  let status = Command::new("git").args(["fetch", "origin", "--prune"]).status()?;
+
+  if !status.success() {
+    return Err(format!("Failed to fetch from origin with exit code: {}", status.code().unwrap_or(-1)).into());
+  }
+
+  println!("✅ Successfully fetched from origin");
+  Ok(())
+}
+
+fn is_branch_merged(branch_name: &str, main_branch: &str) -> Result<bool, Box<dyn std::error::Error>> {
+  // Use git merge-base to check if the branch has been merged
+  // If the merge-base of the branch and main is the same as the branch's HEAD,
+  // then the branch has been fully merged into main
+  let branch_head = Command::new("git").args(["rev-parse", branch_name]).output()?;
+
+  if !branch_head.status.success() {
+    return Err(format!("Failed to get HEAD of branch '{branch_name}'").into());
+  }
+
+  let branch_head_hash = String::from_utf8_lossy(&branch_head.stdout).trim().to_string();
+
+  let merge_base = Command::new("git").args(["merge-base", branch_name, main_branch]).output()?;
+
+  if !merge_base.status.success() {
+    return Err(format!("Failed to find merge-base between '{branch_name}' and '{main_branch}'").into());
+  }
+
+  let merge_base_hash = String::from_utf8_lossy(&merge_base.stdout).trim().to_string();
+
+  // If the branch HEAD is the same as the merge-base, the branch is fully merged
+  Ok(branch_head_hash == merge_base_hash)
+}
+
+fn pull_main_branch(main_branch: &str) -> Result<(), Box<dyn std::error::Error>> {
+  println!("🔄 Merging origin/{main_branch}...");
+  let status = Command::new("git").args(["merge", &format!("origin/{main_branch}")]).status()?;
+
+  if !status.success() {
+    return Err(
+      format!(
+        "Failed to merge origin/{} with exit code: {}",
+        main_branch,
+        status.code().unwrap_or(-1)
+      )
+      .into(),
+    );
+  }
+
+  println!("✅ Successfully updated {main_branch} branch");
   Ok(())
 }
