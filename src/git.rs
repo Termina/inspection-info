@@ -76,39 +76,49 @@ pub fn finish_branch() -> Result<(), Box<dyn std::error::Error>> {
 pub fn open_remote_repository() -> Result<(), String> {
   use std::fs;
   use std::process::Command;
-  
+
+  // 获取当前分支名
+  let repo = Repository::open(".").map_err(|e| format!("Failed to open repository: {e}"))?;
+
+  let head = repo.head().map_err(|e| format!("Failed to get HEAD: {e}"))?;
+
+  let current_branch = if let Some(branch_name) = head.shorthand() {
+    branch_name.to_string()
+  } else {
+    "HEAD".to_string()
+  };
+
   // 读取 .git/config 文件
-  let config_content = fs::read_to_string(".git/config")
-    .map_err(|e| format!("Failed to read .git/config: {e}"))?;
-  
+  let config_content = fs::read_to_string(".git/config").map_err(|e| format!("Failed to read .git/config: {e}"))?;
+
   // 查找 remote "origin" 部分的 url
   let mut in_origin_section = false;
   let mut remote_url = None;
-  
+
   for line in config_content.lines() {
     let line = line.trim();
-    
+
     if line == "[remote \"origin\"]" {
       in_origin_section = true;
       continue;
     }
-    
+
     if line.starts_with('[') && line != "[remote \"origin\"]" {
       in_origin_section = false;
       continue;
     }
-    
+
     if in_origin_section && line.starts_with("url = ") {
       let url = line.strip_prefix("url = ").unwrap();
       remote_url = Some(url.to_string());
       break;
     }
   }
-  
+
   let url = remote_url.ok_or("No remote origin URL found in .git/config")?;
-  
+
   // 转换 Git URL 为 HTTP URL
-  let web_url = if url.starts_with("git@") {
+  let mut web_url = if url.starts_with("git@") {
     // SSH format: git@github.com:user/repo.git -> https://github.com/user/repo
     let without_git = url.strip_prefix("git@").unwrap();
     let parts: Vec<&str> = without_git.split(':').collect();
@@ -125,20 +135,25 @@ pub fn open_remote_repository() -> Result<(), String> {
   } else {
     return Err("Unsupported Git URL format".to_string());
   };
-  
-  println!("🌐 Opening remote repository: {web_url}");
-  
+
+  // 如果是 GitHub 仓库，添加分支信息
+  if web_url.contains("github.com") && current_branch != "HEAD" {
+    web_url = format!("{web_url}/tree/{current_branch}");
+  }
+
+  println!("🌐 Opening remote repository: {web_url} (branch: {current_branch})");
+
   // 使用系统默认浏览器打开 URL
   let result = Command::new("open")
     .arg(&web_url)
     .output()
     .map_err(|e| format!("Failed to open browser: {e}"))?;
-  
+
   if !result.status.success() {
     let stderr = String::from_utf8_lossy(&result.stderr);
     return Err(format!("Failed to open URL: {stderr}"));
   }
-  
+
   println!("✅ Successfully opened remote repository in browser");
   Ok(())
 }
