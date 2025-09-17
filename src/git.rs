@@ -3,10 +3,13 @@ use std::io::{self, Write};
 use std::process::Command;
 
 /// detect main or master branch first, get current branch,
+/// check for dirty state and handle stashing if needed,
 /// then fetch origin/main --prune, switch to main, pull latest changes
-/// finally delete that branch
+/// finally delete that branch and restore stashed changes if any
 pub fn finish_branch() -> Result<(), Box<dyn std::error::Error>> {
   let repo = Repository::open(".")?;
+
+  println!("🔍 Starting branch finish process...");
 
   // Get the current branch
   let head = repo.head()?;
@@ -16,39 +19,42 @@ pub fn finish_branch() -> Result<(), Box<dyn std::error::Error>> {
     return Err("Not on a branch".into());
   };
 
+  println!("📍 Current branch: {current_branch_name}");
+
   // Check if we're already on main or master
   if current_branch_name == "main" || current_branch_name == "master" {
-    println!("Already on {} branch, nothing to do", current_branch_name);
+    println!("✅ Already on {current_branch_name} branch, nothing to do");
     return Ok(());
   }
 
+  // Check for dirty working directory
+  let has_stashed_changes = check_and_handle_dirty_state()?;
+
   // Detect the main branch (main or master)
   let main_branch = detect_main_branch(&repo)?;
-  println!("Detected main branch: {}", main_branch);
+  println!("🎯 Detected main branch: {main_branch}");
 
   // Switch to main branch
-  println!("Switching to {} branch...", main_branch);
+  println!("🔄 Switching to {main_branch} branch...");
   checkout_branch(&repo, &main_branch)?;
+  println!("✅ Successfully switched to {main_branch} branch");
 
   // Fetch and pull latest changes on main branch in one operation
-  println!("Fetching and pulling latest changes on {} branch...", main_branch);
+  println!("📥 Fetching and pulling latest changes on {main_branch} branch...");
   fetch_and_pull(&repo, &main_branch)?;
 
-  // Delete the feature branch
-  print!("Delete branch '{}'? (y/N): ", current_branch_name);
-  io::stdout().flush()?;
+  // Delete the feature branch (no confirmation needed)
+  println!("🗑️  Deleting branch '{current_branch_name}'...");
+  delete_branch(&repo, &current_branch_name)?;
+  println!("✅ Successfully deleted branch '{current_branch_name}'");
 
-  let mut input = String::new();
-  io::stdin().read_line(&mut input)?;
-
-  if input.trim().to_lowercase() == "y" || input.trim().to_lowercase() == "yes" {
-    delete_branch(&repo, &current_branch_name)?;
-    println!("Deleted branch '{}'", current_branch_name);
-  } else {
-    println!("Branch '{}' was not deleted", current_branch_name);
+  // Restore stashed changes if any
+  if has_stashed_changes {
+    println!("🔄 Restoring previously stashed changes...");
+    restore_stashed_changes()?;
   }
 
-  println!("Finished! You are now on the {} branch", main_branch);
+  println!("🎉 Finished! You are now on the {main_branch} branch");
   Ok(())
 }
 
@@ -80,22 +86,20 @@ fn detect_main_branch(repo: &Repository) -> Result<String, Box<dyn std::error::E
 }
 
 fn fetch_and_pull(_repo: &Repository, main_branch: &str) -> Result<(), Box<dyn std::error::Error>> {
-  // Check if there are uncommitted changes first
-  let status = Command::new("git").args(["status", "--porcelain"]).output()?;
-  if !status.stdout.is_empty() {
-    return Err("There are uncommitted changes. Please commit or stash them first.".into());
-  }
-
   // Fetch all branches with prune and then merge the remote tracking branch
   // This is more efficient than separate fetch + pull commands
+  println!("📡 Fetching from origin with --prune...");
   let status = Command::new("git").args(["fetch", "origin", "--prune"]).status()?;
 
   if !status.success() {
     return Err(format!("Failed to fetch from origin with exit code: {}", status.code().unwrap_or(-1)).into());
   }
 
+  println!("✅ Successfully fetched from origin");
+
   // Now merge the remote tracking branch (equivalent to pull but without redundant fetch)
-  let status = Command::new("git").args(["merge", &format!("origin/{}", main_branch)]).status()?;
+  println!("🔄 Merging origin/{main_branch}...");
+  let status = Command::new("git").args(["merge", &format!("origin/{main_branch}")]).status()?;
 
   if !status.success() {
     return Err(
@@ -108,7 +112,7 @@ fn fetch_and_pull(_repo: &Repository, main_branch: &str) -> Result<(), Box<dyn s
     );
   }
 
-  println!("Successfully fetched and updated {} branch", main_branch);
+  println!("✅ Successfully fetched and updated {main_branch} branch");
   Ok(())
 }
 
@@ -118,7 +122,7 @@ fn checkout_branch(repo: &Repository, branch_name: &str) -> Result<(), Box<dyn s
   let commit = branch_ref.peel_to_commit()?;
 
   repo.checkout_tree(commit.as_object(), None)?;
-  repo.set_head(&format!("refs/heads/{}", branch_name))?;
+  repo.set_head(&format!("refs/heads/{branch_name}"))?;
 
   Ok(())
 }
@@ -126,5 +130,83 @@ fn checkout_branch(repo: &Repository, branch_name: &str) -> Result<(), Box<dyn s
 fn delete_branch(repo: &Repository, branch_name: &str) -> Result<(), Box<dyn std::error::Error>> {
   let mut branch = repo.find_branch(branch_name, BranchType::Local)?;
   branch.delete()?;
+  Ok(())
+}
+
+fn check_and_handle_dirty_state() -> Result<bool, Box<dyn std::error::Error>> {
+  // Check if there are uncommitted changes
+  let status = Command::new("git").args(["status", "--porcelain"]).output()?;
+
+  if status.stdout.is_empty() {
+    println!("✅ Working directory is clean");
+    return Ok(false);
+  }
+
+  // Show what changes would be stashed
+  println!("⚠️  Detected uncommitted changes in working directory:");
+  let status_output = String::from_utf8_lossy(&status.stdout);
+  for line in status_output.lines() {
+    println!("   {line}");
+  }
+
+  // Ask user for confirmation
+  print!("📦 Do you want to stash these changes before proceeding? (y/N): ");
+  io::stdout().flush()?;
+
+  let mut input = String::new();
+  io::stdin().read_line(&mut input)?;
+
+  if input.trim().to_lowercase() == "y" || input.trim().to_lowercase() == "yes" {
+    println!("📦 Stashing uncommitted changes...");
+
+    // Create a stash with a descriptive message
+    let stash_message = format!(
+      "Auto-stash before branch finish at {}",
+      std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?.as_secs()
+    );
+
+    let status = Command::new("git").args(["stash", "push", "-m", &stash_message]).status()?;
+
+    if !status.success() {
+      return Err("Failed to stash changes".into());
+    }
+
+    println!("✅ Successfully stashed changes with message: '{stash_message}'");
+    Ok(true)
+  } else {
+    Err("Cannot proceed with uncommitted changes. Please commit or stash them manually.".into())
+  }
+}
+
+fn restore_stashed_changes() -> Result<(), Box<dyn std::error::Error>> {
+  // Apply the most recent stash
+  let status = Command::new("git").args(["stash", "pop"]).output()?;
+
+  if !status.status.success() {
+    let error_msg = String::from_utf8_lossy(&status.stderr);
+    if error_msg.contains("No stash entries found") {
+      println!("ℹ️  No stash entries to restore");
+      return Ok(());
+    } else {
+      println!("⚠️  Warning: Failed to automatically restore stashed changes:");
+      println!("   {}", error_msg.trim());
+      println!("   You can manually restore them later with: git stash pop");
+      return Ok(()); // Don't fail the entire operation
+    }
+  }
+
+  println!("✅ Successfully restored stashed changes");
+
+  // Show what was restored
+  let restored_output = String::from_utf8_lossy(&status.stdout);
+  if !restored_output.trim().is_empty() {
+    println!("📋 Restored changes:");
+    for line in restored_output.lines() {
+      if !line.trim().is_empty() {
+        println!("   {line}");
+      }
+    }
+  }
+
   Ok(())
 }

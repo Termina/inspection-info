@@ -22,12 +22,12 @@ fn main() -> Result<(), String> {
         let network_interfaces = list_afinet_netifas().unwrap();
 
         for (name, ip) in network_interfaces.iter() {
-          println!("{}:\t{:?}", name, ip);
+          println!("{name}:\t{ip:?}");
         }
       } else {
         let my_local_ip = local_ip().unwrap();
         cli_clipboard::set_contents(my_local_ip.to_string()).expect("write to clipboard");
-        println!("{}\t\t(copied to clipboard)", my_local_ip);
+        println!("{my_local_ip}\t\t(copied to clipboard)");
       }
     }
     CopyFile(options) => {
@@ -62,10 +62,10 @@ fn main() -> Result<(), String> {
       for (pid, process) in sys.processes() {
         println!("{}\t#{pid}", process.name().to_string_lossy());
         if let Some(v) = process.cwd() {
-          print!("\t{:?}", v);
+          print!("\t{v:?}");
         }
         if let Some(v) = process.user_id() {
-          print!("\t{:?}", v);
+          print!("\t{v:?}");
         }
         println!();
         // println!("    {}", process.cmd().join(" "));
@@ -79,7 +79,7 @@ fn main() -> Result<(), String> {
       };
       let dir_str = dir.display().to_string();
       cli_clipboard::set_contents(dir_str.to_owned()).expect("write to clipboard");
-      println!("{}\t\t(copied to clipboard)", dir_str);
+      println!("{dir_str}\t\t(copied to clipboard)");
     }
     ListFileSize(options) => {
       show_file_size::show_file_size(options)?;
@@ -120,13 +120,13 @@ fn main() -> Result<(), String> {
     },
     FinishBranch(_) => {
       if let Err(e) = git::finish_branch() {
-        eprintln!("Error finishing branch: {}", e);
+        eprintln!("Error finishing branch: {e}");
         std::process::exit(1);
       }
     }
     ShowTags(options) => {
       if let Err(e) = tags::show_tags(&options) {
-        eprintln!("Error showing tags: {}", e);
+        eprintln!("Error showing tags: {e}");
         std::process::exit(1);
       }
     }

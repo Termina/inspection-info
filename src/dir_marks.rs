@@ -82,7 +82,7 @@ impl DirMarks {
         .marks
         .push(Bookmark::new(kwd.to_owned(), path.to_owned(), description.to_owned()));
     }
-    println!("added `{}`\t{}\t{}", kwd, path, description)
+    println!("added `{kwd}`\t{path}\t{description}")
   }
 
   pub fn remove(&mut self, kwd: &str) {
@@ -91,7 +91,7 @@ impl DirMarks {
       println!("removed `{}`\t{}\t{}", target.kwd, target.path, target.description);
       self.marks.retain(|m| m.kwd != kwd);
     } else {
-      println!("`{}` not found", kwd);
+      println!("`{kwd}` not found");
     }
   }
 
@@ -103,7 +103,7 @@ impl DirMarks {
   pub fn jump(&mut self, kwd: &str) -> Result<(), String> {
     // remove file in `JUMP_TARGET_DATA_PATH`` first
     if std::path::Path::new(JUMP_TARGET_DATA_PATH).exists() {
-      std::fs::remove_file(JUMP_TARGET_DATA_PATH).map_err(|e| format!("failed to remove {}", e))?;
+      std::fs::remove_file(JUMP_TARGET_DATA_PATH).map_err(|e| format!("failed to remove {e}"))?;
     }
 
     // match by exact keyword
@@ -218,6 +218,6 @@ impl DirMarks {
 
   /// print shell function for zsh
   pub fn shell_fn() {
-    println!("{}", SHELL_FN_GG);
+    println!("{SHELL_FN_GG}");
   }
 }
