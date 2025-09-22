@@ -103,7 +103,6 @@ pub fn finish_branch() -> Result<(), Box<dyn std::error::Error>> {
 
 pub fn open_remote_repository() -> Result<(), String> {
   use std::fs;
-  use std::process::Command;
 
   // 获取当前分支名
   let repo = Repository::open(".").map_err(|e| format!("Failed to open repository: {e}"))?;
@@ -172,17 +171,8 @@ pub fn open_remote_repository() -> Result<(), String> {
   println!("🌐 Opening remote repository: {web_url} (branch: {current_branch})");
 
   // 使用系统默认浏览器打开 URL
-  let result = Command::new("open")
-    .arg(&web_url)
-    .output()
-    .map_err(|e| format!("Failed to open browser: {e}"))?;
+  webbrowser::open(&web_url).map_err(|e| format!("Failed to open browser: {e}"))?;
 
-  if !result.status.success() {
-    let stderr = String::from_utf8_lossy(&result.stderr);
-    return Err(format!("Failed to open URL: {stderr}"));
-  }
-
-  println!("✅ Successfully opened remote repository in browser");
   Ok(())
 }
 
@@ -214,13 +204,22 @@ fn detect_main_branch(repo: &Repository) -> Result<String, Box<dyn std::error::E
 }
 
 fn checkout_branch(repo: &Repository, branch_name: &str) -> Result<(), Box<dyn std::error::Error>> {
-  let branch = repo.find_branch(branch_name, BranchType::Local)?;
-  let branch_ref = branch.get();
-  let commit = branch_ref.peel_to_commit()?;
+  if let Ok(local) = repo.find_branch(branch_name, BranchType::Local) {
+    let commit = local.get().peel_to_commit()?;
+    repo.checkout_tree(commit.as_object(), None)?;
+    repo.set_head(&format!("refs/heads/{branch_name}"))?;
+    return Ok(());
+  }
 
+  // Fallback: create local branch from origin/<branch_name>
+  let remote_ref = format!("refs/remotes/origin/{branch_name}");
+  let rref = repo.find_reference(&remote_ref)?;
+  let commit = rref.peel_to_commit()?;
+  repo.branch(branch_name, &commit, false)?;
+  let mut new_local = repo.find_branch(branch_name, BranchType::Local)?;
+  new_local.set_upstream(Some(&format!("origin/{branch_name}")))?;
   repo.checkout_tree(commit.as_object(), None)?;
   repo.set_head(&format!("refs/heads/{branch_name}"))?;
-
   Ok(())
 }
 

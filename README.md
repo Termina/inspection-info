@@ -122,7 +122,7 @@ The `in br` command provides Git branch management functionality.
 
 ### Finish Branch
 
-Finish the current branch by merging it to the main branch and cleaning up:
+Finish the current branch by verifying it is already merged into the main branch and cleaning up:
 
 ```bash
 in br finish
@@ -130,7 +130,7 @@ in br finish
 
 This command will:
 
-- Check if the current branch is merged to the main branch
+- Check if the current branch is already merged into the main branch; abort if it is not
 - Switch to the main branch
 - Pull the latest changes
 - Delete the feature branch
