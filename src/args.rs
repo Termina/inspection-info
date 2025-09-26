@@ -1,3 +1,4 @@
+use crate::jwt::InspectForJwt;
 use argh::FromArgs;
 
 #[derive(FromArgs, PartialEq, Debug)]
@@ -19,6 +20,7 @@ pub enum InspectionCommand {
   DirMark(InspectForDirMark),
   Branch(InspectForBranch),
   ShowTags(InspectForTags),
+  Jwt(InspectForJwt),
 }
 
 /// command for inspecting IP addresses.

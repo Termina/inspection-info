@@ -1,6 +1,7 @@
 mod args;
 mod dir_marks;
 mod git;
+mod jwt;
 mod show_file_size;
 mod tags;
 
@@ -131,10 +132,16 @@ fn main() -> Result<(), String> {
           std::process::exit(1);
         }
       }
-    }
+    },
     ShowTags(options) => {
       if let Err(e) = tags::show_tags(&options) {
         eprintln!("Error showing tags: {e}");
+        std::process::exit(1);
+      }
+    }
+    Jwt(options) => {
+      if let Err(e) = jwt::handle_jwt_command(options.subcommand) {
+        eprintln!("Error handling jwt command: {e}");
         std::process::exit(1);
       }
     }
