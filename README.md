@@ -94,6 +94,7 @@ in tags
 ```
 
 Example output:
+
 ```
 Showing the last 10 of 12 tags (from 2025-07-31 to 2025-07-31). Use --all to see all.
 
@@ -114,6 +115,41 @@ To view all tags, use the `--all` flag.
 ```bash
 in tags --all
 ```
+
+## Branch Operations
+
+The `in br` command provides Git branch management functionality.
+
+### Finish Branch
+
+Finish the current branch by verifying it is already merged into the main branch and cleaning up:
+
+```bash
+in br finish
+```
+
+This command will:
+
+- Check if the current branch is already merged into the main branch; abort if it is not
+- Switch to the main branch
+- Pull the latest changes
+- Delete the feature branch
+- Handle any uncommitted changes with stash if needed
+
+### Open Remote Repository
+
+Open the remote repository in your default browser:
+
+```bash
+in br open
+```
+
+This command will:
+
+- Parse the `.git/config` file to find the remote origin URL
+- Convert SSH/HTTPS Git URLs to web URLs
+- For GitHub repositories, automatically navigate to the current branch
+- Open the URL in your default browser
 
 ### License
 
