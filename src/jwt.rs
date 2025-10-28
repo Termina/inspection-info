@@ -56,6 +56,8 @@ fn decode_jwt(args: DecodeArgs) -> Result<(), String> {
   validation.insecure_disable_signature_validation();
   validation.validate_exp = false;
   validation.validate_aud = false;
+  validation.validate_nbf = false;
+  validation.required_spec_claims.clear();
 
   let token_data = match decode::<Value>(&token, &DecodingKey::from_secret(&[]), &validation) {
     Ok(t) => t,
