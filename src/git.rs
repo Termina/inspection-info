@@ -135,6 +135,12 @@ fn remote_web_url(url: &str, current_branch: &str) -> Result<String, String> {
       .split_once(':')
       .ok_or_else(|| "Invalid SSH Git URL format".to_string())?;
     format!("https://{host}/{path}")
+  } else if let Some(without_scheme) = url.strip_prefix("ssh://") {
+    let (authority, path) = without_scheme
+      .split_once('/')
+      .ok_or_else(|| "Invalid SSH Git URL format".to_string())?;
+    let host = authority.rsplit('@').next().unwrap_or(authority);
+    format!("https://{host}/{path}")
   } else if url.starts_with("https://") || url.starts_with("http://") {
     url.to_string()
   } else {
@@ -143,10 +149,20 @@ fn remote_web_url(url: &str, current_branch: &str) -> Result<String, String> {
 
   let base = base.strip_suffix(".git").unwrap_or(&base);
   if base.contains("github.com") && current_branch != "HEAD" {
-    Ok(format!("{base}/tree/{current_branch}"))
+    Ok(format!("{base}/tree/{}", encode_url_path(current_branch)))
   } else {
     Ok(base.to_string())
   }
+}
+
+fn encode_url_path(value: &str) -> String {
+  value
+    .bytes()
+    .map(|byte| match byte {
+      b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' | b'/' => (byte as char).to_string(),
+      _ => format!("%{byte:02X}"),
+    })
+    .collect()
 }
 
 fn detect_main_branch(repo: &Repository) -> Result<String, Box<dyn std::error::Error>> {
