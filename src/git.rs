@@ -7,7 +7,8 @@ use std::process::Command;
 /// then fetch origin/main --prune, switch to main, pull latest changes
 /// finally delete that branch and restore stashed changes if any
 pub fn finish_branch() -> Result<(), Box<dyn std::error::Error>> {
-  let repo = Repository::open(".")?;
+  // Discover the repository so this command also works from nested directories.
+  let repo = Repository::discover(".")?;
 
   println!("🔍 Starting branch finish process...");
 
