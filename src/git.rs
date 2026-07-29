@@ -7,7 +7,8 @@ use std::process::Command;
 /// then fetch origin/main --prune, switch to main, pull latest changes
 /// finally delete that branch and restore stashed changes if any
 pub fn finish_branch() -> Result<(), Box<dyn std::error::Error>> {
-  let repo = Repository::open(".")?;
+  // Discover the repository so this command also works from nested directories.
+  let repo = Repository::discover(".")?;
 
   println!("🔍 Starting branch finish process...");
 
@@ -102,10 +103,9 @@ pub fn finish_branch() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 pub fn open_remote_repository() -> Result<(), String> {
-  use std::fs;
-
-  // 获取当前分支名
-  let repo = Repository::open(".").map_err(|e| format!("Failed to open repository: {e}"))?;
+  // Discover the repository from the current directory so this also works
+  // when invoked from a project directory inside the repository.
+  let repo = Repository::discover(".").map_err(|e| format!("Failed to discover repository: {e}"))?;
 
   let head = repo.head().map_err(|e| format!("Failed to get HEAD: {e}"))?;
 
@@ -115,58 +115,12 @@ pub fn open_remote_repository() -> Result<(), String> {
     "HEAD".to_string()
   };
 
-  // 读取 .git/config 文件
-  let config_content = fs::read_to_string(".git/config").map_err(|e| format!("Failed to read .git/config: {e}"))?;
-
-  // 查找 remote "origin" 部分的 url
-  let mut in_origin_section = false;
-  let mut remote_url = None;
-
-  for line in config_content.lines() {
-    let line = line.trim();
-
-    if line == "[remote \"origin\"]" {
-      in_origin_section = true;
-      continue;
-    }
-
-    if line.starts_with('[') && line != "[remote \"origin\"]" {
-      in_origin_section = false;
-      continue;
-    }
-
-    if in_origin_section && line.starts_with("url = ") {
-      let url = line.strip_prefix("url = ").unwrap();
-      remote_url = Some(url.to_string());
-      break;
-    }
-  }
-
-  let url = remote_url.ok_or("No remote origin URL found in .git/config")?;
-
-  // 转换 Git URL 为 HTTP URL
-  let mut web_url = if url.starts_with("git@") {
-    // SSH format: git@github.com:user/repo.git -> https://github.com/user/repo
-    let without_git = url.strip_prefix("git@").unwrap();
-    let parts: Vec<&str> = without_git.split(':').collect();
-    if parts.len() == 2 {
-      let host = parts[0];
-      let path = parts[1].strip_suffix(".git").unwrap_or(parts[1]);
-      format!("https://{host}/{path}")
-    } else {
-      return Err("Invalid SSH Git URL format".to_string());
-    }
-  } else if url.starts_with("https://") {
-    // HTTPS format: already web-compatible, just remove .git suffix if present
-    url.strip_suffix(".git").unwrap_or(&url).to_string()
-  } else {
-    return Err("Unsupported Git URL format".to_string());
-  };
-
-  // 如果是 GitHub 仓库，添加分支信息
-  if web_url.contains("github.com") && current_branch != "HEAD" {
-    web_url = format!("{web_url}/tree/{current_branch}");
-  }
+  let url = repo
+    .config()
+    .map_err(|e| format!("Failed to read repository config: {e}"))?
+    .get_string("remote.origin.url")
+    .map_err(|_| "No remote origin URL found in repository config".to_string())?;
+  let web_url = remote_web_url(&url, &current_branch)?;
 
   println!("🌐 Opening remote repository: {web_url} (branch: {current_branch})");
 
@@ -174,6 +128,42 @@ pub fn open_remote_repository() -> Result<(), String> {
   webbrowser::open(&web_url).map_err(|e| format!("Failed to open browser: {e}"))?;
 
   Ok(())
+}
+
+fn remote_web_url(url: &str, current_branch: &str) -> Result<String, String> {
+  let base = if let Some(without_git) = url.strip_prefix("git@") {
+    let (host, path) = without_git
+      .split_once(':')
+      .ok_or_else(|| "Invalid SSH Git URL format".to_string())?;
+    format!("https://{host}/{path}")
+  } else if let Some(without_scheme) = url.strip_prefix("ssh://") {
+    let (authority, path) = without_scheme
+      .split_once('/')
+      .ok_or_else(|| "Invalid SSH Git URL format".to_string())?;
+    let host = authority.rsplit('@').next().unwrap_or(authority);
+    format!("https://{host}/{path}")
+  } else if url.starts_with("https://") || url.starts_with("http://") {
+    url.to_string()
+  } else {
+    return Err("Unsupported Git URL format".to_string());
+  };
+
+  let base = base.strip_suffix(".git").unwrap_or(&base);
+  if base.contains("github.com") && current_branch != "HEAD" {
+    Ok(format!("{base}/tree/{}", encode_url_path(current_branch)))
+  } else {
+    Ok(base.to_string())
+  }
+}
+
+fn encode_url_path(value: &str) -> String {
+  value
+    .bytes()
+    .map(|byte| match byte {
+      b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' | b'/' => (byte as char).to_string(),
+      _ => format!("%{byte:02X}"),
+    })
+    .collect()
 }
 
 fn detect_main_branch(repo: &Repository) -> Result<String, Box<dyn std::error::Error>> {

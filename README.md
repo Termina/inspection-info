@@ -146,7 +146,8 @@ in br open
 
 This command will:
 
-- Parse the `.git/config` file to find the remote origin URL
+- Discover the repository from the current directory (or any directory inside it)
+- Read the remote origin URL from the repository config
 - Convert SSH/HTTPS Git URLs to web URLs
 - For GitHub repositories, automatically navigate to the current branch
 - Open the URL in your default browser

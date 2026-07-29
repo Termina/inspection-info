@@ -1,7 +1,8 @@
 [package]
 name = "inspect-info"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
+rust-version = "1.85"
 
 [[bin]]
 name = "in"
@@ -21,4 +22,3 @@ colored = "2.1.0"
 git2 = "0.20.2"
 webbrowser = "0.8"
 jsonwebtoken = "9.3.1"
-
